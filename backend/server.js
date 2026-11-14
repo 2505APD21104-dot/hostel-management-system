@@ -14,7 +14,7 @@ const auth = require('./middleware/auth');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: '*' })); // CORS fix applied here
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hostel_db')
@@ -41,32 +41,23 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // 1. Check if user exists
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials (User not found)' });
-    }
+    if (!user) return res.status(400).json({ message: 'Invalid credentials (User not found)' });
 
-    // 2. Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials (Wrong password)' });
-    }
+    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials (Wrong password)' });
 
-    // 3. Create token
     const payload = { user: { id: user.id, role: user.role, name: user.name } };
     
     jwt.sign(payload, process.env.JWT_SECRET || 'supersecretkey123', { expiresIn: '1d' }, (err, token) => {
       if (err) throw err;
-      
-      // 4. Send response (Make sure role is included explicitly)
       res.json({ 
         token, 
         user: { 
           id: user.id, 
           name: user.name, 
           email: user.email, 
-          role: user.role // THIS IS CRITICAL
+          role: user.role 
         } 
       });
     });
